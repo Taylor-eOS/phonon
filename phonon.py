@@ -9,13 +9,26 @@ LANG = "de"
 QUANT = ""
 SAMPLE_RATE = 24000
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+INPUT_FILE = os.path.join(OUTPUT_DIR, "input.txt")
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "output.wav")
+WARMUP_SENTENCE = "Hi"
 GAP_SECONDS = 0.4
-SENTENCES = [
-    "Guten Tag, das ist ein kurzer Test des deutschen Phonon Modells.",
-    "Schöne Grüße aus Köln, wo die Straßenbahn heute größtenteils pünktlich fuhr.",
-    "Wir haben viel zu feiern.",
-]
+
+def load_sentences(path):
+    if not os.path.exists(path):
+        print(f"Input file not found: {path}")
+        raise SystemExit(1)
+    sentences = []
+    with open(path, "r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            sentences.append(line)
+    if not sentences:
+        print(f"No sentences found in {path}")
+        raise SystemExit(1)
+    return sentences
 
 def load_model():
     kwargs = {"lang": LANG}
@@ -28,7 +41,7 @@ def load_model():
         print(f"Model load failed: {error}")
         print("The 40m models are gated: set HF_TOKEN or run 'hf auth login'.")
         raise SystemExit(1)
-    print(f"Model loaded in {time.perf_counter() - start:.2f} s")
+    print(f"Model loaded in {time.perf_counter() - start:.2f}s")
     return tts
 
 def to_mono(samples):
@@ -52,26 +65,27 @@ def write_wav(path, samples):
         handle.setframerate(SAMPLE_RATE)
         handle.writeframes(pcm.tobytes())
 
-def synthesize(tts, text, voice_name="Anton"): 
+def synthesize(tts, text, voice_name="Anton"):
     start = time.perf_counter()
     samples = to_mono(tts.synth(text, voice=voice_name))
     elapsed = time.perf_counter() - start
     duration = samples.size / SAMPLE_RATE
     speed = duration / elapsed if elapsed > 0 else float("inf")
-    print(f"  {duration:.2f} s audio in {elapsed:.3f} s ({speed:.1f}x real time)")
+    print(f"{duration:.2f} s audio in {elapsed:.3f} s {speed:.1f}x")
     return samples
 
 def main():
-    tts = load_model()
-    print("Warming up...")
-    tts.synth("Hallo.")
+    sentences = load_sentences(INPUT_FILE)
+    print(f"Loaded {len(sentences)} sentence(s) from {INPUT_FILE}")
+    tts = load_model(
+    tts.synth(WARMUP_SENTENCE)
     gap = np.zeros(int(GAP_SECONDS * SAMPLE_RATE), dtype=np.float32)
     all_samples = []
-    for i, text in enumerate(SENTENCES):
-        print(f"[{i+1}/{len(SENTENCES)}] {text}")
+    for i, text in enumerate(sentences):
+        print(f"[{i+1}/{len(sentences)}] {text}")
         samples = synthesize(tts, text)
         if samples.size == 0:
-            print("  WARNING: no audio returned, skipping")
+            print("Warning: no audio returned, skipping")
             continue
         all_samples.append(samples)
         all_samples.append(gap)
