@@ -9,11 +9,12 @@ LANG = "de"
 QUANT = ""
 SAMPLE_RATE = 24000
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "phonon_audiobook.wav")
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "output.wav")
 GAP_SECONDS = 0.4
 SENTENCES = [
     "Guten Tag, das ist ein kurzer Test des deutschen Phonon Modells.",
     "Schöne Grüße aus Köln, wo die Straßenbahn heute größtenteils pünktlich fuhr.",
+    "Wir haben viel zu feiern.",
 ]
 
 def load_model():
@@ -25,8 +26,7 @@ def load_model():
         tts = ptts.TTS(MODEL, **kwargs)
     except Exception as error:
         print(f"Model load failed: {error}")
-        print("The 40m models are gated: accept the terms on the model page, "
-              "then set HF_TOKEN or run 'hf auth login'.")
+        print("The 40m models are gated: set HF_TOKEN or run 'hf auth login'.")
         raise SystemExit(1)
     print(f"Model loaded in {time.perf_counter() - start:.2f} s")
     return tts
@@ -52,9 +52,9 @@ def write_wav(path, samples):
         handle.setframerate(SAMPLE_RATE)
         handle.writeframes(pcm.tobytes())
 
-def synthesize(tts, text):
+def synthesize(tts, text, voice_name="Anton"): 
     start = time.perf_counter()
-    samples = to_mono(tts.synth(text))
+    samples = to_mono(tts.synth(text, voice=voice_name))
     elapsed = time.perf_counter() - start
     duration = samples.size / SAMPLE_RATE
     speed = duration / elapsed if elapsed > 0 else float("inf")
