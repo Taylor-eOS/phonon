@@ -4,8 +4,24 @@ import wave
 import numpy as np
 import ptts
 
-MODEL = "hf://gradium/phonon-40m-de"
-LANG = "de"
+MODEL_TEMPLATE = "hf://gradium/phonon-40m-{lang}"
+LANGUAGES = ("en", "de")
+DEFAULT_LANG = "en"
+VOICES = {
+    "de": [
+        ("Male", "Anton"), ("Male", "Mirko"), ("Male", "Mats"), ("Male", "Henrik"), ("Male", "Leon"), ("Male", "Mika"),
+        ("Female", "Nele"), ("Female", "Jette"), ("Female", "Annika"), ("Female", "Jule"), ("Female", "Lotta"), ("Female", "Josefine"), ("Female", "Svea"),
+    ],
+    "en": [
+        ("US Female", "Zoey"), ("US Female", "Juniper"), ("US Female", "Everly"), ("US Female", "Harper"), ("US Female", "Hadley"), ("US Female", "Delia"),
+        ("US Male", "Easton"), ("US Male", "Micah"), ("US Male", "Trevor"), ("US Male", "Russell"), ("US Male", "Preston"), ("US Male", "Miles"),
+        ("UK Female", "Maeve"), ("UK Female", "Freya"), ("UK Female", "Pippa"), ("UK Female", "Elodie-Rose"), ("UK Female", "Imogen"), ("UK Female", "Lottie"), ("UK Female", "Bryony"),
+        ("UK Male", "Alfie"), ("UK Male", "Hugh"), ("UK Male", "Edwin"), ("UK Male", "Spencer"), ("UK Male", "Toby"), ("UK Male", "Teddy"),
+    ],
+}
+MODEL = ""
+LANG = DEFAULT_LANG
+VOICE = ""
 QUANT = ""
 SAMPLE_RATE = 24000
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -13,6 +29,35 @@ INPUT_FILE = os.path.join(OUTPUT_DIR, "input.txt")
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "output.wav")
 WARMUP_SENTENCE = "Hi"
 GAP_SECONDS = 0.4
+
+def choose_language():
+    global LANG, MODEL
+    while True:
+        answer = input(f"Language {'/'.join(LANGUAGES)} ({DEFAULT_LANG}): ").strip().lower() or DEFAULT_LANG
+        if answer in LANGUAGES:
+            break
+        print(f"Unsupported language: {answer}")
+    LANG = answer
+    MODEL = MODEL_TEMPLATE.format(lang=LANG)
+
+def choose_voice():
+    global VOICE
+    options = VOICES[LANG]
+    names = {name.lower(): name for _, name in options}
+    for number, (group, name) in enumerate(options, 1):
+        print(f"{number:2d}. {name} ({group})")
+    while True:
+        answer = input("Voice (number or name) [1]: ").strip().lower()
+        if not answer:
+            VOICE = options[0][1]
+            return
+        if answer.isdigit() and 1 <= int(answer) <= len(options):
+            VOICE = options[int(answer) - 1][1]
+            return
+        if answer in names:
+            VOICE = names[answer]
+            return
+        print(f"Unsupported voice: {answer}")
 
 def load_sentences(path):
     if not os.path.exists(path):
@@ -65,7 +110,8 @@ def write_wav(path, samples):
         handle.setframerate(SAMPLE_RATE)
         handle.writeframes(pcm.tobytes())
 
-def synthesize(tts, text, voice_name="Anton"):
+def synthesize(tts, text, voice_name=None):
+    voice_name = voice_name or VOICE
     start = time.perf_counter()
     samples = to_mono(tts.synth(text, voice=voice_name))
     elapsed = time.perf_counter() - start
@@ -75,10 +121,11 @@ def synthesize(tts, text, voice_name="Anton"):
     return samples
 
 def main():
+    choose_language()
+    choose_voice()
     sentences = load_sentences(INPUT_FILE)
-    print(f"Loaded {len(sentences)} sentence(s) from {INPUT_FILE}")
-    tts = load_model(
-    tts.synth(WARMUP_SENTENCE)
+    tts = load_model()
+    tts.synth(WARMUP_SENTENCE, voice=VOICE)
     gap = np.zeros(int(GAP_SECONDS * SAMPLE_RATE), dtype=np.float32)
     all_samples = []
     for i, text in enumerate(sentences):
