@@ -3,23 +3,11 @@ import time
 import wave
 import numpy as np
 import ptts
+import settings
 
 MODEL_TEMPLATE = "hf://gradium/phonon-40m-{lang}"
-LANGUAGES = ("en", "de")
-DEFAULT_LANG = "en"
-VOICES = {
-    "de": {
-        "Male": ["Anton", "Mirko", "Mats", "Henrik", "Leon", "Mika"],
-        "Female": ["Nele", "Jette", "Annika", "Jule", "Lotta", "Josefine", "Svea"],
-    },
-    "en": {
-        "US Male": ["Easton", "Micah", "Trevor", "Russell", "Preston", "Miles"],
-        "UK Male": ["Alfie", "Hugh", "Edwin", "Spencer", "Toby", "Teddy"],
-        "US Female": ["Zoey", "Juniper", "Everly", "Harper", "Hadley", "Delia"],
-        "UK Female": ["Maeve", "Freya", "Pippa", "Elodie-Rose", "Imogen", "Lottie", "Bryony"],
-    },
-}
-LANG = DEFAULT_LANG
+LANGUAGES = ("en", "de", "es")
+LANG = LANGUAGES[0]
 VOICE = ""
 QUANT = ""
 SAMPLE_RATE = 24000
@@ -31,13 +19,13 @@ tts = None
 
 def choose_language():
     global LANG
-    LANG = input(f"Language {'/'.join(LANGUAGES)} ({DEFAULT_LANG}): ").strip().lower() or DEFAULT_LANG
+    LANG = input(f"Language {'/'.join(LANGUAGES)} ({LANGUAGES[0]}): ").strip().lower() or LANGUAGES[0]
     while LANG not in LANGUAGES:
         LANG = input("Unsupported language, try again: ").strip().lower()
 
 def choose_voice():
     global VOICE
-    options = [(group, name) for group, names in VOICES[LANG].items() for name in names]
+    options = [(group, name) for group, names in settings.VOICES[LANG].items() for name in names]
     names = {name.lower(): name for _, name in options}
     for number, (group, name) in enumerate(options, 1):
         print(f"{number:2d}. {name} ({group})")
